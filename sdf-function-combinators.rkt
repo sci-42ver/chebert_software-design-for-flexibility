@@ -49,15 +49,17 @@
 (define (arity-min arity)
   (cond
     ((arity-at-least? arity) (arity-at-least-value arity))
-    ((arity-list? arity) (first arity))
+    ((arity-list? arity) (first arity)) ; first is used for list which is one special pair.
     (else arity)))
 
 (define (combine-arity-at-least at-least arity)
   (arity-at-least (+ (arity-at-least-value at-least)
                      (arity-min arity))))
 
+;; Here definite-arity may be one number although it can be also seen as one range which seems to be also said in SICP.
 (define (combine-arity-list arity-list definite-arity)
   (if (arity-list? definite-arity)
+      ;; This returns a list of all *possible* values instead of one range.
       (remove-duplicates
        (sort (append-map (λ (a) (map (λ (b) (+ a b)) definite-arity)) arity-list) <))
       (map (λ (x) (+ x definite-arity)) arity-list)))
@@ -65,10 +67,11 @@
 
 (define (combine-arities arity-a arity-b)
   (cond
-    ((arity-at-least? arity-a) (combine-arity-at-least arity-a arity-b))
+    ((arity-at-least? arity-a) (combine-arity-at-least arity-a arity-b)) ; a: (k . #f), k \in \mathbb{N^+}
     ((arity-at-least? arity-b) (combine-arity-at-least arity-b arity-a))
     ((arity-list? arity-a) (combine-arity-list arity-a arity-b))
     ((arity-list? arity-b) (combine-arity-list arity-b arity-a))
+    ;; `procedure-arity` in racket may return one value
     (else (+ arity-a arity-b))))
 
 #|
@@ -96,6 +99,8 @@
   (let* ((n (get-arity f))
          (m (get-arity g))
          (t (combine-arities n m)))
+    (displayln t)
+    ;; same as sci-42ver/SDF_exercise_solution
     (assert (definite-arity? (get-arity f)))
     (define (the-combination . args)
       (assert (has-arity? t (length args)))
@@ -280,3 +285,12 @@
          spread-apply
          swap-args
          get-arity)
+
+;; https://stackoverflow.com/a/7133473/21294350
+((spread-combine
+  (lambda (num_1)
+    (* num_1 num_1))
+  (lambda (num_1 [num_2 2])
+    (+ num_1 num_2))
+  +)
+    3 2 3)
