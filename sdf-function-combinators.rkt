@@ -99,7 +99,7 @@
   (let* ((n (get-arity f))
          (m (get-arity g))
          (t (combine-arities n m)))
-    (displayln t)
+    ; (displayln t)
     ;; same as sci-42ver/SDF_exercise_solution
     (assert (definite-arity? (get-arity f)))
     (define (the-combination . args)
@@ -115,6 +115,7 @@
 (define (parallel-combine f g h)
   (compose h (λ args (values (apply f args) (apply g args)))))
 
+;; similar to list-insert
 (define (list-remove l index)
   (let loop ((i 0)
              (l l)
@@ -153,16 +154,24 @@
 (define (list-insert xs x index)
   (let loop ((xs xs)
              (i 0)
+             ;; result will be the reversed list of elements indexed from 0 to i-1.
              (result '()))
     (if (null? xs)
         (reverse
+          ;; Here i will (+ (length xs) 1)
          (if (= i index)
              (cons x result)
+             ;; not inserted if index>i, otherwise inserted in the following `(= i index)`.
              result))
         (loop (rest xs)
               (+ i 1)
               (if (= i index)
-                  (cons (first xs) (cons x result))
+                  ;; This will insert after the index. Then `reverse` will make it same as the book implementation.
+                  ;; The key difference is that the book uses recursive implementation while here uses iterative. This is also shown in SICP.
+                  (begin
+                    ; (displayln (cons (first xs) (cons x result)))
+                    (cons (first xs) (cons x result))
+                    )
                   (cons (first xs) result))))))
 
 #|
@@ -177,10 +186,14 @@
 |#
 
 (define (compose-args f arg-f)
+  ; (displayln arg-f)
   (compose f values* arg-f))
 
+;; lack one assertion form the code base
 (define ((permute-arguments . permute-spec) f)
   (restrict-arity!
+    ;; call (listref args idx)
+    ;; `(λ args (map (curry-right list-ref args) permute-spec))` same as code base `permute`.
    (compose-args f (λ args (map (curry-right list-ref args) permute-spec)))
    (get-arity f)))
 
@@ -188,7 +201,15 @@
   (compose f values* (λ (arg) (list-insert args arg i))))
 
 (define ((discard-argument i) f)
+  ;; 1. better check `(assert (< i m))` etc. as the code base does.
+  ;; 2. one disadvantage of the abstraction is that assertion like `(assert (= (length args) m))` can not be easily inserted in something like `(compose-args f (curry-left* list-remove i))` since it depends on `f` and what `list-remove` accepts.
+  (assert (exact-nonnegative-integer? i)) ; from the code base
   (restrict-arity!
+    ;; just means `(list-remove args i)`
+    ;; compose-args abstracts `values`. 
+    
+    ;; And `(curry-left* list-remove i)` just does what `discard-argument` needs to do specifically.
+    ;; Here values for `list-remove` will be ((...) idx).
    (compose-args f (curry-left* list-remove i))
    (combine-arities (get-arity f) 1)))
 
@@ -201,6 +222,7 @@
                           fixed-args
                           curry-spec
                           unfixed-args)))
+   ;; (length unfixed-args)
    (length curry-spec)))
 
 (define (sorted? xs compare)
@@ -213,7 +235,10 @@
 
 (define (((curry-arguments* position) . fixed-args) f)
   (assert (exact-nonnegative-integer? position))
-  (compose-args f (λ args (list-insert fixed-args args position))))
+  ;; list-insert uses `cons` so args should be arg (number 1).
+  (compose-args f (λ args
+                    ; (displayln (list-insert fixed-args args position))
+                    (list-insert fixed-args args position))))
 
 (define ((discard-arguments . discard-spec) f)
   (let ((discard-spec (sort discard-spec >)))
@@ -230,6 +255,8 @@
   (if (null? fs)
       values
       (let ((gs (reverse fs)))
+        ;; https://docs.racket-lang.org/reference/pairs.html#%28def._%28%28lib._racket%2Fprivate%2Flist..rkt%29._foldl%29%29
+        ;; Here we first call (compose2 (first (rest gs)) (first gs)) ("from left to right"), then (compose2 (second (rest gs)) last_result)
         (foldl compose2 (first gs) (rest gs)))))
 
 (define (rotate-right xs)
@@ -251,6 +278,7 @@
   (permute-arguments 1 0))
 (define (curry-left f . args)
   ((apply (curry-arguments 0) args) f))
+;; take arg and insert it at the left (idx 0) of args
 (define (curry-left* f . args)
   ((apply (curry-arguments* 0) args) f))
 (define (curry-right f . args)
@@ -294,3 +322,9 @@
     (+ num_1 num_2))
   +)
     3 2 3)
+
+(((discard-argument 2)
+  (lambda (x y z)
+    (list 'foo x y z)))
+ 'a 'b 'c 'd)
+'expect-value: '(foo a b d)
