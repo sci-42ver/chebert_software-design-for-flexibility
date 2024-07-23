@@ -243,6 +243,10 @@
 (define ((discard-arguments . discard-spec) f)
   (let ((discard-spec (sort discard-spec >)))
     (restrict-arity!
+      ;; 1. lack assertion
+      ;; 2. swap-args to ensure `(list-remove args)`
+      ;; IGNORE: This is wrong since the idx should be taken at once instead of taken for the *sublist*.
+      ;; 3. Here `discard-spec` is sorted, so we can use foldl to remove the elements from right to left.
      (compose-args f (λ args (foldl (swap-args list-remove) args discard-spec)))
      (combine-arities (get-arity f) (length discard-spec)))))
 
@@ -328,3 +332,8 @@
     (list 'foo x y z)))
  'a 'b 'c 'd)
 'expect-value: '(foo a b d)
+
+(((discard-arguments 2 3)
+  (lambda (x y)
+    (list 'foo x y)))
+ 'a 'b 'c 'd)
