@@ -252,15 +252,23 @@
 
 (define (compose2 f g)
   (restrict-arity!
-   (λ args (call-with-values (λ () (apply g args)) f))
+   (λ args (call-with-values (λ ()
+                                (apply g args)) 
+                              f))
    (get-arity g)))
 
+; (define (identity x) x)
+;; Almost same as mbillingr
 (define (compose . fs)
   (if (null? fs)
+      ;; IGNORE: to be compatible with `call-with-values` when doing something like (compose f (compose-multiple)).
+      ;; identity can only take one arg, so we  don't use it.
       values
+      ; identity
       (let ((gs (reverse fs)))
         ;; https://docs.racket-lang.org/reference/pairs.html#%28def._%28%28lib._racket%2Fprivate%2Flist..rkt%29._foldl%29%29
         ;; Here we first call (compose2 (first (rest gs)) (first gs)) ("from left to right"), then (compose2 (second (rest gs)) last_result)
+        ;; Here `foldl` instead of `compose2` manipulates (= (length fs) 1) case.
         (foldl compose2 (first gs) (rest gs)))))
 
 (define (rotate-right xs)
@@ -337,3 +345,8 @@
   (lambda (x y)
     (list 'foo x y)))
  'a 'b 'c 'd)
+
+(displayln "test (compose f)")
+((compose (lambda (x) x)) 1)
+
+((compose (lambda (x y) (+ x y)) (compose)) 1 2)
