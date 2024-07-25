@@ -282,11 +282,19 @@
 (define (r:seq . exprs)
   (λ args
     (if (null? args)
+        ;; https://docs.racket-lang.org/reference/quasiquote.html#%28form._%28%28lib._racket%2Fprivate%2Fletstx-scheme..rkt%29._quasiquote%29%29
+        ;; nested list becomes not nested.
         `(r:seq ,@(map (λ (expr) (expr)) exprs))
         (case (first args)
           ((bre ere)
            (apply string-append
-                  (map (λ (expr) (expr (first args))) exprs)))))))
+                  (map (λ (expr) 
+                          ; (displayln expr)
+                          ; (displayln (expr (first args)))
+                          
+                          ; (expr (first args)))
+                          expr)
+                        exprs)))))))
 
 (define (r:alt . exprs)
   (r:group
@@ -308,19 +316,22 @@
   (λ args
     (if (null? args)
         ;; TODO here expr may be literal str.
+        ;; As https://stackoverflow.com/a/78784662/21294350 says, here ,min ,max have no effects.
         `(r:repeat ,min ,max ,(expr))
         (case (first args)
           ((bre ere)
             ;; TODO read the following after the related exercises.
-           ((r:seq expr
-                   (r:special-char #\{)
-                   (r:quote (number->string min))
-                   (r:quote
+          (displayln "run bre/ere")
+          ((r:seq expr
+                  ((r:special-char #\{) (first args))
+                  ((r:quote (number->string min)) (first args))
+                  ((r:quote
                     (cond ((and max (= max min)) "")
                           (max (string-append "," (number->string max)))
-                          (else ",")))
-                   (r:special-char #\}))
-            (first args)))))))
+                          (else ","))) (first args))
+                  ((r:special-char #\}) (first args)))
+            (first args)))
+          (else (displayln "wrong args"))))))
 
 (define (r:back-reference n)
   (assert (<= 1 n 9))
@@ -373,3 +384,8 @@
          r:back-reference
          regex-string
          bourne-shell-grep-command-string)
+
+(displayln "regex test")
+;; See R7RS for how to use `case`.
+(displayln ((r:quote "dog") 'bre))
+(displayln ((r:repeat 2 #f ((r:quote "dog") 'bre)) 'bre))
