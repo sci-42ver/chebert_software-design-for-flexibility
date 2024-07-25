@@ -307,9 +307,11 @@
 (define (r:repeat min max expr)
   (λ args
     (if (null? args)
+        ;; TODO here expr may be literal str.
         `(r:repeat ,min ,max ,(expr))
         (case (first args)
           ((bre ere)
+            ;; TODO read the following after the related exercises.
            ((r:seq expr
                    (r:special-char #\{)
                    (r:quote (number->string min))
