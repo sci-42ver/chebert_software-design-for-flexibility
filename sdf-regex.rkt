@@ -312,6 +312,7 @@
                                              ((r:group expr) (first args))))
                             (rest exprs))))))))))
 
+;; same as nbardiuk but take bre, ere in account.
 (define (r:repeat min max expr)
   (λ args
     (if (null? args)
