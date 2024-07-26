@@ -235,6 +235,7 @@
       (or (= len 1)
           (and (= len 2) (eq? (first cs) #\\))))))
 
+;; TODO as SDF_exercises/software/sdf/common/predicate-metadata.scm says.
 (define group? (make-bundle-predicate 'group))
 
 (define (r:group expr)
@@ -247,7 +248,8 @@
          ((bre ere)
           (let ((str (expr (first args))))
             (if (or (group? expr)
-                    (single-char? str))
+                    (single-char? str) ; TODO why this doesn't need ().
+                    )
                 str
                 ((r:seq (r:special-char #\()
                         expr
@@ -284,7 +286,7 @@
     (if (null? args)
         ;; https://docs.racket-lang.org/reference/quasiquote.html#%28form._%28%28lib._racket%2Fprivate%2Fletstx-scheme..rkt%29._quasiquote%29%29
         ;; nested list becomes not nested.
-        `(r:seq ,@(map (λ (expr) (expr)) exprs))
+        `(r:seq ,@(map (λ (expr) (expr)) exprs)) ; just give one representation without evaluating it.
         (case (first args)
           ((bre ere)
            (apply string-append
