@@ -213,6 +213,7 @@
    (compose-args f (curry-left* list-remove i))
    (combine-arities (get-arity f) 1)))
 
+;; 
 (define (((curry-arguments . curry-spec) . fixed-args) f)
   (assert (sorted? curry-spec <))
   (restrict-arity!
@@ -288,9 +289,11 @@
   (compose-args f (λ args (rotate-left args))))
 (define swap-args
   (permute-arguments 1 0))
+;; see the next comment.
 (define (curry-left f . args)
   ((apply (curry-arguments 0) args) f))
 ;; take arg and insert it at the left (idx 0) of args
+;; * means variant https://justinethier.github.io/cyclone/docs/Scheme-code-conventions.html
 (define (curry-left* f . args)
   ((apply (curry-arguments* 0) args) f))
 (define (curry-right f . args)

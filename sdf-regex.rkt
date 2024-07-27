@@ -157,7 +157,14 @@
 ;     - multiple references to each expr structure (1 in ere, 1 in bre, and 1 in each expr)
 ;   bundle that takes a regex type. e.g. (expr 'ere) or (expr 'bre). (expr) could return a structure/list for further extension.
 
+; TODO for "Design options:"
+; 1. here expr may be type string, so how does `(expr 'bre)` work? (without any tests I don't know how to pass the correct expr.)
+; 2. where is implementation of (bre expr)?
+; 3. multiple references?
+; 4. bundle?
+
 (define bre-chars-needing-quoting '(#\. #\[ #\\ #\^ #\$ #\*))
+;; Here ( or ) in the quote doesn't need \ to make it the ordinary character.
 (define bre-special-chars '(#\| #\( #\) #\{ #\}))
 (define ere-chars-needing-quoting '(#\. #\[ #\\ #\( #\) #\* #\+ #\? #\} #\| #\^ #\$))
 (define chars-needing-quoting-in-brackets '(#\] #\^ #\-))
@@ -173,6 +180,7 @@
                       (list #\\ char)
                       (list char))))))))
 
+;; based on the definition of "needing-quoting".
 (define (r:quote-char char)
   (λ args
     (if (null? args)
@@ -186,6 +194,7 @@
                       (list #\\ char)
                       (list char))))))))
 
+;; 3 trivial common patterns of ere and bre.
 (define (r:dot)
   (λ args
     (if (null? args)
@@ -204,6 +213,8 @@
         '(r:eol)
         (case (first args)
           ((bre ere) "$")))))
+
+;; mainly iteratively call `r:quote-char`.
 (define (r:quote string)
   (λ args
     (if (null? args)
@@ -212,23 +223,26 @@
           ((bre ere) 
            (apply string-append (map (λ (char) ((r:quote-char char) (first args))) (string->list string))))))))
 
-
+;; no modification based on code base
 (define (bracket string procedure)
   (list->string
    (append '(#\[)
            (procedure (string->list string))
            '(#\]))))
 
+;; same ideas as code base
 (define (quote-bracketed-contents members)
   (define (optional char)
     (if (memv char members)
         (list char)
         '()))
   (append (optional #\])
+          ;; i.e. remove ...
           (filter (negate (curry-left memv chars-needing-quoting-in-brackets)) members)
           (optional #\^)
           (optional #\-)))
 
+;; addition based on code base
 (define (single-char? str)
   (let ((cs (string->list str)))
     (let ((len (length cs)))
@@ -236,6 +250,7 @@
           (and (= len 2) (eq? (first cs) #\\))))))
 
 ;; TODO as SDF_exercises/software/sdf/common/predicate-metadata.scm says.
+;; This is unavailable in Racket.
 (define group? (make-bundle-predicate 'group))
 
 (define (r:group expr)
@@ -247,8 +262,10 @@
        (case (first args)
          ((bre ere)
           (let ((str (expr (first args))))
+            ;; See 6.945_assignment_solution for the reasons of cases.
+            ;; we also need to consider bracket.
             (if (or (group? expr)
-                    (single-char? str) ; TODO why this doesn't need ().
+                    (single-char? str)
                     )
                 str
                 ((r:seq (r:special-char #\()
@@ -263,14 +280,18 @@
         (case (first args)
           ((bre ere)
            (case (string-length string)
+              ;; This is wrong without r:group since for 0, we can't capture it without grouping.
+              ;; See https://stackoverflow.com/q/78792939/21294350
              ((0 1) ((r:quote string) (first args)))
              (else
               (bracket string
                        (λ (members)
+                          ;; TODO maybe same as `lset= eqv? ...`.
                          (if (set=? '(#\- #\^) members)
                              '(#\- #\^)
                              (quote-bracketed-contents members)))))))))))
 
+;; same as code base with the bre/ere wrappper.
 (define (r:char-not-from string)
   (λ args
     (if (null? args)
@@ -291,14 +312,14 @@
           ((bre ere)
            (apply string-append
                   (map (λ (expr) 
-                          ; (displayln expr)
-                          ; (displayln (expr (first args)))
-                          
+                          ;; TODO how does the author implement expr procedure for different expr's?
                           ; (expr (first args)))
                           expr)
                         exprs)))))))
 
 (define (r:alt . exprs)
+  ;; TODO IMHO we can nest grouping, so here it is wrong.
+  ;; And it pass one func to expr which is also wrong.
   (r:group
    (λ args
      (if (null? args)
@@ -306,8 +327,9 @@
          (case (first args)
            ((bre ere)
             (if (null? exprs)
-                ""
+                "" ; fine since length is 0 and the () is kept.
                 (apply string-append
+                        ;; TODO why group inside?
                        ((r:group (car exprs)) (first args))
                        (map (λ (expr)
                               (string-append ((r:special-char #\|) (first args))
@@ -336,6 +358,7 @@
             (first args)))
           (else (displayln "wrong args"))))))
 
+;; addition
 (define (r:back-reference n)
   (assert (<= 1 n 9))
   (λ args
@@ -353,6 +376,7 @@
    (r:quote "a")
    (r:back-reference 1)))
 
+;; TODO (expr regex-type)?
 (define (regex-string expr regex-type) (expr regex-type))
 
 (define (write-bourne-shell-grep-command expr regex-type filename)
@@ -364,6 +388,7 @@
                  " "
                  filename))
 
+;; same as code base
 (define (bourne-shell-quote-string string)
   (list->string
    (append (list #\')
