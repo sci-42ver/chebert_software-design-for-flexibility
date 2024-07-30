@@ -249,8 +249,9 @@
       (or (= len 1)
           (and (= len 2) (eq? (first cs) #\\))))))
 
-;; TODO as SDF_exercises/software/sdf/common/predicate-metadata.scm says.
+;; See SDF appendix B.
 ;; This is unavailable in Racket.
+;; It should use bundle as test-bundles implies.
 (define group? (make-bundle-predicate 'group))
 
 (define (r:group expr)
