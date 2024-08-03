@@ -28,6 +28,7 @@
          (piece-type p)))
 
 ;; Board
+;; game is defined separately. See make-game. This is better since we can define different boards for the same game.
 (struct board (pieces current-color) #:transparent)
 
 (define (current-pieces board)
@@ -55,12 +56,14 @@
   (board
    (filter (λ (piece) (not (coords= (piece-coords piece) coords))) (board-pieces b))
    (board-current-color b)))
+;; lacking guards and less efficient than `board-replace-piece`.
 (define (board-replace old-piece new-piece b)
   (board
    (cons new-piece (board-pieces (board-remove (piece-coords old-piece) b)))
    (board-current-color b)))
 
-;; Change
+;; Change https://docs.racket-lang.org/reference/define-struct.html
+;; TODO #:transparent https://docs.racket-lang.org/guide/define-struct.html
 (struct change (board piece flags) #:transparent)
 (define get-board change-board)
 (define get-piece change-piece)

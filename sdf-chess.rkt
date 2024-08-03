@@ -4,7 +4,7 @@
 (require "sdf-function-combinators.rkt")
 (require "sdf-rule-executive.rkt")
 
-
+;; checked begin
 (define chess (make-game 'chess))
 
 (define (queen? piece) (eq? (piece-type piece) 'queen))
@@ -47,6 +47,8 @@
 (define (slide-direction-flag? flag) (and (pair? flag) (eq? (first flag) 'slide-direction)))
 (define (slide-direction-from-flag slide-direction-flag) (second slide-direction-flag))
 
+;; https://docs.racket-lang.org/reference/pairs.html#%28def._%28%28lib._racket%2Fprivate%2Flist..rkt%29._findf%29%29
+;; just almost same as MIT/GNU Scheme find.
 (define (sliding-move? pmove) (findf slide-direction-flag? (current-flags pmove)))
 (define (slide-direction pmove)
   (let* ((flags  (current-flags pmove))
@@ -55,6 +57,7 @@
         (error "Could not find slide-direction flag in " flags)
         (slide-direction-from-flag flag))))
 
+;; Error: don't check whether component is king.
 (define (make-finished-capture-move new-coords pmove)
   (let ((board (current-board pmove)))
     (and
@@ -91,6 +94,7 @@
    (append-flags pmove (list (make-slide-direction-flag direction)))
    direction))
 
+;; if encountering one occupied self piece, return #f.
 (define (continue-sliding-move pmove)
   (make-capturing-directional-move pmove (slide-direction pmove)))
 
@@ -104,8 +108,9 @@
                     (sliding-piece-directions piece)))
       (let ((move (continue-sliding-move pmove)))
         (if move
-            (list (finish-move pmove) move)
-            (list (finish-move pmove))))))
+          ;; this will finish the history non-finished move implied by `evolve-pmove` and add the new pmove which will be manipulated with the recursive `evolve-pmove`.
+          (list (finish-move pmove) move)
+          (list (finish-move pmove))))))
 
 (define-evolution-rule 'sliding-move chess
   (λ (pmove)
@@ -113,6 +118,7 @@
       (if (piece-slides? piece)
           (get-sliding-moves pmove)
           '()))))
+;; checked end
 
 (define-evolution-rule 'king-move chess
   (λ (pmove)
@@ -128,6 +134,7 @@
                 all-directions))
           '()))))
 
+;; checked begin
 (define (black? piece) (eq? (piece-color piece) 'black))
 (define (pawn-direction piece) (if (black? piece) south north))
 (define (pawn-in-initial-position? piece)
@@ -144,6 +151,7 @@
   (let ((single-move (make-non-capturing-directional-move pmove (pawn-direction piece))))
     (if single-move
         (map finish-move
+            ;; filter out #f.
              (filter (λ (x) x) (list single-move (get-pawn-extended-move single-move piece))))
         '())))
 
@@ -156,6 +164,9 @@
   (let ((move (make-non-capture-move new-coords pmove)))
     (and move (finish-move move))))
 
+;; Notice here it doesn't check
+;; > *immediately* after the two-square advance
+;; This needs `remove-pawn-en-passant-status` to check the board update. This should be done manually in test.
 (define (make-en-passant-capture-move new-coords pmove)
   (let* ((board (current-board pmove))
          (piece (current-piece pmove))
@@ -163,6 +174,9 @@
          (offset (coords (- (coords-x new-coords) (coords-x old-coords)) 0))
          (capture-coords (coords+ old-coords offset)))
     (and (is-position-on-board? new-coords board)
+         ;; here it need to test whether `new-coords` is unoccupied to ensure `make-non-capture-move` doesn't return #f.
+         (is-position-unoccupied? new-coords board)
+         ;; The following 2 cases are to ensure `en-passant-pawn?` work.
          (is-position-on-board? capture-coords board)
          (is-position-occupied-by-opponent? capture-coords board)
          (en-passant-pawn? (board-get capture-coords board))
@@ -177,6 +191,7 @@
                                            (and en-passant-move (finish-move en-passant-move)))))
                     capture-move))
                 directions)))
+;; checked end
 
 (define (pawn-reached-opposite-side? pmove)
   (let* ((piece (current-piece pmove))
@@ -203,6 +218,7 @@
 
 (define (remove-piece-initial-status pmove)
   (let ((piece (current-piece pmove)))
+    ;; use one new type.
     (cond ((initial-king? piece) (update-piece (λ (p) (piece-new-type p 'king)) pmove))
           ((initial-rook? piece) (update-piece (λ (p) (piece-new-type p 'rook)) pmove))
           (else pmove))))
@@ -538,3 +554,25 @@
      (piece 'white (coords 7 7) 'initial-rook))
     (map (λ (x) (piece 'white (coords x 6) 'pawn)) (range 8)))
    'white))
+
+;; test same as `test-chess.scm`.
+(define (flip-coords coords-arg)
+  (coords (- 7 (coords-x coords-arg))
+          (- 7 (coords-y coords-arg))))
+
+;; here color is swapped to be compatible with pawn-direction.
+(define test-chess-board
+  (board
+    (list
+      ;; test capture (all the following white can capture the black pawn)
+      (piece 'black (flip-coords (coords 6 2)) 'pawn)
+      (piece 'white (coords 2 4) 'pawn)
+      (piece 'white (coords 3 4) 'knight)
+      (piece 'white (coords 4 5) 'queen)
+      (piece 'white (coords 2 6) 'king)
+      (piece 'black (flip-coords (coords 3 1)) 'king)
+      (piece 'black (flip-coords (coords 1 4)) 'pawn)
+      (piece 'white (coords 6 1) 'pawn)
+      )
+   'white))
+(map move->string (generate-moves test-chess-board chess))
