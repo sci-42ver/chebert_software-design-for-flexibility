@@ -102,9 +102,11 @@
       (combine-flags flags (get-flags (first pmove))))
      pmove)))
 
+;; checked
 (define (update-piece procedure pmove)
   (update-piece-and-append-flags procedure pmove '()))
 
+;; checked
 (define (new-piece-position coords pmove)
   (update-piece-and-append-flags
    (λ (piece) (piece-new-coords piece coords))
@@ -134,11 +136,22 @@
                  (evolve-pmove pmove evolution-rules))
                initial-pmoves)))
 
+(define (slide-direction-flag? flag) (and (pair? flag) (eq? (first flag) 'slide-direction)))
 (define (evolve-pmove pmove evolution-rules)
   (append-map (λ (new-pmove)
                 (if (is-pmove-finished? new-pmove)
                     (list new-pmove)
-                    (evolve-pmove new-pmove evolution-rules)))
+                    (begin
+                      ;; Added: only does this possibly for `sliding-moves`.
+                      ; (displayln "call evolve-pmove recursively for pmove:")
+                      ; (displayln (map get-piece new-pmove))
+                      (if (findf slide-direction-flag? (current-flags new-pmove))
+                        (display "")
+                        (begin
+                          (displayln (map get-piece new-pmove))
+                          (displayln (map get-flags new-pmove))
+                          (displayln "call evolve-pmove recursively not for sliding pmove:")))
+                      (evolve-pmove new-pmove evolution-rules))))
               (append-map (λ (evolution-rule)
                             (evolution-rule pmove))
                           evolution-rules)))
@@ -208,4 +221,5 @@
          define-evolution-rule
          define-aggregate-rule
          get-evolution-rules
-         get-aggregate-rules)
+         get-aggregate-rules
+         slide-direction-flag?)

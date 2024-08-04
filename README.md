@@ -6,3 +6,9 @@ Credit for exercises and template code belongs to them, if you remix, transform,
 
 Implementations of exercises are my own and are licensed under the same license.
 If you remix, transform, or build upon the extensions I've made to their source material, please credit my name.
+
+---
+
+sci-42ver:
+
+From sdf-chess.rkt, I added "Changed:" and "Added:" to mark what I change for the original repo.
